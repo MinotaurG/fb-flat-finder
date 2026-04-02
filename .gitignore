@@ -1,0 +1,15 @@
+# Sensitive Data
+cookies.json
+.env
+
+# python artifacts
+ __pycache__/
+*.pyc
+
+# Virtual enviornment
+venv/
+
+# Other common ignores
+*.log
+.DS_Store
+*.swp
