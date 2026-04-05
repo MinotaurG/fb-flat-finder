@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FB Flat Finder</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; color: #333; }
+
+        /* Layout */
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 280px; background: #fff; border-right: 1px solid #e0e0e0;
+            padding: 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        }
+        .main { flex: 1; padding: 24px; max-width: 900px; margin: 0 auto; }
+
+        /* Sidebar */
+        .sidebar h1 { font-size: 1.3em; margin-bottom: 4px; }
+        .sidebar .subtitle { color: #888; font-size: 0.85em; margin-bottom: 20px; }
+        .filter-group { margin-bottom: 14px; }
+        .filter-group label { display: block; font-size: 0.8em; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .filter-group input, .filter-group select {
+            width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 0.9em; background: #fafafa;
+        }
+        .filter-group input:focus, .filter-group select:focus { outline: none; border-color: #1976d2; }
+        .filter-row { display: flex; gap: 8px; }
+        .filter-row .filter-group { flex: 1; }
+        .checkbox-group { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .checkbox-group input { width: auto; }
+        .checkbox-group label { margin-bottom: 0; font-size: 0.85em; font-weight: 400; text-transform: none; letter-spacing: 0; }
+        .btn-filter {
+            width: 100%; padding: 9px; background: #1976d2; color: #fff; border: none;
+            border-radius: 6px; font-size: 0.9em; cursor: pointer; font-weight: 500;
+        }
+        .btn-filter:hover { background: #1565c0; }
+        .btn-clear { width: 100%; padding: 7px; background: none; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; cursor: pointer; margin-top: 6px; color: #888; }
+        .btn-clear:hover { border-color: #999; color: #555; }
+
+        .stats { margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-item { text-align: center; padding: 8px; background: #f8f9fa; border-radius: 6px; }
+        .stat-item .num { font-size: 1.2em; font-weight: 700; color: #1976d2; }
+        .stat-item .label { font-size: 0.7em; color: #888; text-transform: uppercase; }
+
+        /* Results header */
+        .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .results-header .count { color: #888; font-size: 0.9em; }
+        .sort-select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; background: #fff; }
+
+        /* Card */
+        .card {
+            background: #fff; border-radius: 12px; border: 1px solid #e8e8e8;
+            margin-bottom: 16px; overflow: hidden; transition: box-shadow 0.2s;
+        }
+        .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .card-body { padding: 20px; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .card-title { font-size: 1.15em; font-weight: 700; color: #222; }
+        .card-location { font-size: 0.85em; color: #888; margin-top: 2px; }
+        .card-rent { text-align: right; }
+        .card-rent .amount { font-size: 1.3em; font-weight: 700; color: #1976d2; }
+        .card-rent .deposit { font-size: 0.8em; color: #999; }
+
+        /* Tags */
+        .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+        .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75em; font-weight: 500; }
+        .tag-blue { background: #e3f2fd; color: #1565c0; }
+        .tag-green { background: #e8f5e9; color: #2e7d32; }
+        .tag-orange { background: #fff8e1; color: #e65100; }
+        .tag-red { background: #fce4ec; color: #c62828; }
+        .tag-gray { background: #f5f5f5; color: #666; }
+
+        /* Image gallery */
+        .gallery { margin-top: 12px; position: relative; }
+        .gallery-grid {
+            display: grid; gap: 4px; border-radius: 8px; overflow: hidden;
+            max-height: 360px;
+        }
+        .gallery-grid.single { grid-template-columns: 1fr; }
+        .gallery-grid.duo { grid-template-columns: 1fr 1fr; }
+        .gallery-grid.multi { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+        .gallery-grid img {
+            width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .gallery-grid img:hover { opacity: 0.9; }
+        .gallery-grid .main-img { grid-row: 1 / -1; }
+        .gallery-more {
+            position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.65);
+            color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 0.8em;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92); z-index: 1000; align-items: center; justify-content: center;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+        .lightbox-close {
+            position: absolute; top: 20px; right: 24px; color: #fff; font-size: 2em;
+            cursor: pointer; background: none; border: none; line-height: 1;
+        }
+        .lightbox-nav {
+            position: absolute; top: 50%; transform: translateY(-50%); color: #fff;
+            font-size: 2.5em; cursor: pointer; background: rgba(255,255,255,0.15);
+            border: none; padding: 8px 16px; border-radius: 8px;
+        }
+        .lightbox-nav:hover { background: rgba(255,255,255,0.3); }
+        .lightbox-prev { left: 16px; }
+        .lightbox-next { right: 16px; }
+        .lightbox-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #ccc; font-size: 0.9em; }
+        .lightbox-thumbs {
+            position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 6px;
+        }
+        .lightbox-thumbs img {
+            width: 56px; height: 56px; object-fit: cover; border-radius: 6px;
+            cursor: pointer; border: 2px solid transparent; opacity: 0.6; transition: all 0.2s;
+        }
+        .lightbox-thumbs img.active { border-color: #fff; opacity: 1; }
+        .lightbox-thumbs img:hover { opacity: 0.9; }
+
+        /* Amenities */
+        .amenities { margin-top: 8px; }
+        .amenity { display: inline-block; padding: 2px 8px; margin: 1px 2px; border-radius: 4px; font-size: 0.75em; background: #f0f4ff; color: #1565c0; }
+
+        /* Footer */
+        .card-footer {
+            margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f0f0;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+            font-size: 0.85em;
+        }
+        .card-footer a { color: #1976d2; text-decoration: none; }
+        .card-footer a:hover { text-decoration: underline; }
+        .card-footer .meta { color: #aaa; }
+
+        /* Full post */
+        .full-post { margin-top: 10px; }
+        .full-post summary { cursor: pointer; color: #1976d2; font-size: 0.85em; font-weight: 500; }
+        .full-post pre { margin-top: 8px; white-space: pre-wrap; font-size: 0.85em; color: #555; background: #fafafa; padding: 12px; border-radius: 6px; font-family: inherit; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 24px 0; }
+        .pagination a, .pagination span {
+            padding: 8px 14px; border-radius: 6px; font-size: 0.9em; text-decoration: none;
+        }
+        .pagination a { background: #fff; border: 1px solid #ddd; color: #333; }
+        .pagination a:hover { background: #f0f0f0; }
+        .pagination .current { background: #1976d2; color: #fff; font-weight: 600; }
+        .pagination .disabled { color: #ccc; pointer-events: none; }
+        .pagination .dots { border: none; background: none; color: #999; }
+
+        .btn-wishlist {
+            background: none; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px;
+            cursor: pointer; font-size: 0.85em; color: #888; transition: all 0.2s;
+        }
+        .btn-wishlist:hover { border-color: #e53935; color: #e53935; }
+        .btn-wishlist.saved { background: #fce4ec; border-color: #e53935; color: #e53935; }
+        .btn-share {
+            background: none; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px;
+            cursor: pointer; font-size: 0.85em; color: #888; transition: all 0.2s;
+        }
+        .btn-share:hover { border-color: #1976d2; color: #1976d2; }
+        .card-actions { display: flex; gap: 8px; }
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9em; z-index: 2000; display: none;
+        }
+        .toast.show { display: block; animation: fadeout 0.5s 1.5s forwards; }
+        @keyframes fadeout { to { opacity: 0; } }
+        .nav-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+        .nav-tab {
+            padding: 10px 20px; text-decoration: none; color: #888; font-weight: 500;
+            border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 0.95em;
+        }
+        .nav-tab:hover { color: #333; }
+        .nav-tab.active { color: #1976d2; border-bottom-color: #1976d2; }
+
+        /* Empty state */
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .empty h2 { font-size: 1.2em; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h1>Flat Finder</h1>
+            <p class="subtitle">Hyderabad Rentals</p>
+
+            <div class="nav-tabs" style="margin-bottom:16px">
+                <a href="/" class="nav-tab {{ '' if is_wishlist else 'active' }}">All Listings</a>
+                <a href="/wishlist" class="nav-tab {{ 'active' if is_wishlist else '' }}">Wishlist</a>
+            </div>
+
+            <form method="GET" action="/">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Min Rent</label>
+                        <input type="number" name="min_rent" value="{{ filters.get('min_rent', '') }}" placeholder="0" step="1000">
+                    </div>
+                    <div class="filter-group">
+                        <label>Max Rent</label>
+                        <input type="number" name="max_rent" value="{{ filters.get('max_rent', '') }}" placeholder="Any" step="1000">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label>BHK</label>
+                    <select name="bhk">
+                        <option value="">Any</option>
+                        {% for b in [1,2,3,4] %}
+                        <option value="{{ b }}" {{ 'selected' if filters.get('bhk')|string == b|string }}>{{ b }} BHK</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Location</label>
+                    <input type="text" name="location" value="{{ filters.get('location', '') }}" placeholder="e.g. Kondapur">
+                </div>
+
+                <div class="filter-group">
+                    <label>Furnished</label>
+                    <select name="furnished">
+                        <option value="">Any</option>
+                        {% for f in ['fully', 'semi', 'unfurnished'] %}
+                        <option value="{{ f }}" {{ 'selected' if filters.get('furnished') == f }}>{{ f|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Listing Type</label>
+                    <select name="listing_type">
+                        <option value="">Any</option>
+                        <option value="full_flat" {{ 'selected' if filters.get('listing_type') == 'full_flat' }}>Full Flat</option>
+                        <option value="flatmate" {{ 'selected' if filters.get('listing_type') == 'flatmate' }}>Flatmate</option>
+                        <option value="room" {{ 'selected' if filters.get('listing_type') == 'room' }}>Room</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Parking</label>
+                    <select name="parking">
+                        <option value="">Any</option>
+                        {% for p in ['car', 'bike', 'both'] %}
+                        <option value="{{ p }}" {{ 'selected' if filters.get('parking') == p }}>{{ p|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Gender</label>
+                    <select name="gender_preference">
+                        <option value="">Any</option>
+                        {% for g in ['female', 'male'] %}
+                        <option value="{{ g }}" {{ 'selected' if filters.get('gender_preference') == g }}>{{ g|title }} Only</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="margin: 12px 0">
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="gated_community" value="1" id="gated" {{ 'checked' if filters.get('gated_community') }}>
+                        <label for="gated">Gated Community</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="no_brokerage" value="1" id="nobroker" {{ 'checked' if filters.get('no_brokerage') }}>
+                        <label for="nobroker">No Brokerage</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="food_preference" value="veg" id="veg" {{ 'checked' if filters.get('food_preference') == 'veg' }}>
+                        <label for="veg">Vegetarian</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="has_contact" value="1" id="contact" {{ 'checked' if filters.get('has_contact') }}>
+                        <label for="contact">Has Contact</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="has_images" value="1" id="images" {{ 'checked' if filters.get('has_images') }}>
+                        <label for="images">Has Photos</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="has_rent" value="1" id="rent_filter" {{ 'checked' if filters.get('has_rent') }}>
+                        <label for="rent_filter">Has Rent</label>
+                    </div>
+                </div>
+
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <button type="submit" class="btn-filter">Apply Filters</button>
+                <a href="/" class="btn-clear" style="display:block;text-align:center;text-decoration:none;margin-top:6px">Clear All</a>
+            </form>
+
+            <div class="stats">
+                <div class="stats-grid">
+                    <div class="stat-item"><div class="num">{{ stats.total }}</div><div class="label">Total</div></div>
+                    <div class="stat-item"><div class="num">{{ stats.with_rent }}</div><div class="label">With Rent</div></div>
+                    <div class="stat-item"><div class="num">{{ stats.full_flat }}</div><div class="label">Full Flat</div></div>
+                    <div class="stat-item"><div class="num">{{ stats.flatmate }}</div><div class="label">Flatmate</div></div>
+                    <div class="stat-item"><div class="num">{{ stats.no_brokerage }}</div><div class="label">No Broker</div></div>
+                    <div class="stat-item"><div class="num">{{ stats.veg }}</div><div class="label">Veg</div></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main">
+            <div class="results-header">
+                <span class="count">{{ total_count }} listings found</span>
+                <form method="GET" style="display:inline">
+                    {% for key, val in filters.items() %}
+                    {% if key != 'sort_by' %}
+                    <input type="hidden" name="{{ key }}" value="{{ val }}">
+                    {% endif %}
+                    {% endfor %}
+                    <select name="sort_by" class="sort-select" onchange="this.form.submit()">
+                        <option value="created_at" {{ 'selected' if sort_by == 'created_at' }}>Newest First</option>
+                        <option value="rent" {{ 'selected' if sort_by == 'rent' }}>By Rent</option>
+                        <option value="bhk" {{ 'selected' if sort_by == 'bhk' }}>By BHK</option>
+                    </select>
+                </form>
+            </div>
+
+            {% if not listings %}
+            <div class="empty">
+                <h2>No listings found</h2>
+                <p>Try adjusting your filters</p>
+            </div>
+            {% endif %}
+
+            {% for listing in listings %}
+            {% set listing_idx = loop.index0 %}
+            <div class="card">
+                <!-- Image gallery -->
+                {% if listing.images %}
+                <div class="gallery">
+                    <div class="gallery-grid {{ 'single' if listing.images|length == 1 else ('duo' if listing.images|length == 2 else 'multi') }}">
+                        {% if listing.images|length == 1 %}
+                            <img src="{{ listing.images[0] }}" alt="Listing photo" onclick="openLightbox({{ listing_idx }}, 0)" onerror="this.parentElement.parentElement.style.display='none'">
+                        {% elif listing.images|length == 2 %}
+                            <img src="{{ listing.images[0] }}" alt="Photo 1" onclick="openLightbox({{ listing_idx }}, 0)" onerror="this.style.display='none'">
+                            <img src="{{ listing.images[1] }}" alt="Photo 2" onclick="openLightbox({{ listing_idx }}, 1)" onerror="this.style.display='none'">
+                        {% else %}
+                            <img src="{{ listing.images[0] }}" alt="Photo 1" class="main-img" onclick="openLightbox({{ listing_idx }}, 0)" onerror="this.style.display='none'">
+                            {% for img in listing.images[1:3] %}
+                            <img src="{{ img }}" alt="Photo {{ loop.index + 1 }}" onclick="openLightbox({{ listing_idx }}, {{ loop.index }})" onerror="this.style.display='none'">
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    {% if listing.images|length > 3 %}
+                    <span class="gallery-more" onclick="openLightbox({{ listing_idx }}, 0)">+{{ listing.images|length - 3 }} more</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">{{ listing.bhk or '?' }} BHK</div>
+                            <div class="card-location">{{ listing.location or 'Unknown location' }}</div>
+                        </div>
+                        <div class="card-rent">
+                            <div class="amount">{% if listing.rent %}Rs. {{ "{:,}".format(listing.rent|int) }}/mo{% else %}N/A{% endif %}</div>
+                            <div class="deposit">Deposit: {% if listing.deposit %}Rs. {{ "{:,}".format(listing.deposit|int) }}{% else %}--{% endif %}</div>
+                        </div>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="tags">
+                        {% if listing.furnished %}<span class="tag tag-blue">{{ listing.furnished }}</span>{% endif %}
+                        {% if listing.listing_type %}<span class="tag tag-gray">{{ listing.listing_type|replace('_', ' ') }}</span>{% endif %}
+                        {% if listing.gated_community %}<span class="tag tag-green">Gated</span>{% endif %}
+                        {% if listing.no_brokerage %}<span class="tag tag-green">No Broker</span>{% endif %}
+                        {% if listing.food_preference %}<span class="tag {{ 'tag-orange' if listing.food_preference == 'veg' else 'tag-gray' }}">{{ listing.food_preference }}</span>{% endif %}
+                        {% if listing.gender_preference and listing.gender_preference != 'any' %}<span class="tag tag-red">{{ listing.gender_preference }} only</span>{% endif %}
+                        {% if listing.parking %}<span class="tag tag-gray">Parking: {{ listing.parking }}</span>{% endif %}
+                        {% if listing.floor %}<span class="tag tag-gray">Floor {{ listing.floor }}</span>{% endif %}
+                        {% if listing.available_from %}<span class="tag tag-orange">Avail: {{ listing.available_from }}</span>{% endif %}
+                        {% if listing.maintenance %}<span class="tag tag-gray">Maint: Rs.{{ listing.maintenance }}</span>{% endif %}
+                    </div>
+
+                    <!-- Amenities -->
+                    {% if listing.amenities %}
+                    <div class="amenities">
+                        {% for a in listing.amenities %}<span class="amenity">{{ a }}</span>{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Full post -->
+                    <details class="full-post">
+                        <summary>View Full Post</summary>
+                        <pre>{{ listing.raw_text }}</pre>
+                    </details>
+
+                    <!-- Footer -->
+                    <div class="card-footer">
+                        <div>
+                            {% if listing.contact %}<strong>{{ listing.contact }}</strong>{% endif %}
+                            {% if listing.post_url %} &middot; <a href="{{ listing.post_url }}" target="_blank">View on Facebook &rarr;</a>{% endif %}
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-wishlist {{ 'saved' if listing.id in wishlist_ids else '' }}"
+                                    onclick="toggleWishlist({{ listing.id }}, this)"
+                                    title="{{ 'Remove from wishlist' if listing.id in wishlist_ids else 'Save to wishlist' }}">
+                                {{ '&#9829; Saved' if listing.id in wishlist_ids else '&#9825; Save' }}
+                            </button>
+                            <button class="btn-share" onclick="shareListing({{ listing.id }}, '{{ listing.bhk or '?' }} BHK - {{ listing.location or 'Unknown' }}', '{{ listing.rent or '' }}')" title="Share listing">
+                                &#8599; Share
+                            </button>
+                        </div>
+                    </div>
+                    <div class="meta" style="margin-top:6px;font-size:0.8em;color:#aaa">
+                        {% if listing.group_name %}{{ listing.group_name }}{% endif %}
+                        {% if listing.scraped_at %} &middot; {{ listing.scraped_at[:10] }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                <a href="?{{ filters|urlencode }}&sort_by={{ sort_by }}&page={{ page - 1 }}">&laquo; Prev</a>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <span class="current">{{ p }}</span>
+                    {% elif p <= 3 or p > total_pages - 3 or (p >= page - 1 and p <= page + 1) %}
+                        <a href="?{{ filters|urlencode }}&sort_by={{ sort_by }}&page={{ p }}">{{ p }}</a>
+                    {% elif p == 4 or p == total_pages - 3 %}
+                        <span class="dots">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                <a href="?{{ filters|urlencode }}&sort_by={{ sort_by }}&page={{ page + 1 }}">Next &raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-nav lightbox-prev" onclick="navLightbox(-1)">&lsaquo;</button>
+        <img id="lightbox-img" src="" alt="Full size">
+        <button class="lightbox-nav lightbox-next" onclick="navLightbox(1)">&rsaquo;</button>
+        <div class="lightbox-thumbs" id="lightbox-thumbs"></div>
+        <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+
+    <script>
+        // Store all listing images for lightbox
+        const allImages = [
+            {% for listing in listings %}
+            {{ listing.images|tojson }},
+            {% endfor %}
+        ];
+
+        let currentListing = 0;
+        let currentImg = 0;
+
+        function openLightbox(listingIdx, imgIdx) {
+            currentListing = listingIdx;
+            currentImg = imgIdx;
+            updateLightbox();
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function navLightbox(dir) {
+            const imgs = allImages[currentListing];
+            currentImg = (currentImg + dir + imgs.length) % imgs.length;
+            updateLightbox();
+        }
+
+        function jumpToImg(idx) {
+            currentImg = idx;
+            updateLightbox();
+        }
+
+        function updateLightbox() {
+            const imgs = allImages[currentListing];
+            document.getElementById('lightbox-img').src = imgs[currentImg];
+            document.getElementById('lightbox-counter').textContent = (currentImg + 1) + ' / ' + imgs.length;
+
+            // Thumbnails
+            const thumbs = document.getElementById('lightbox-thumbs');
+            thumbs.innerHTML = '';
+            imgs.forEach((src, i) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = i === currentImg ? 'active' : '';
+                img.onclick = () => jumpToImg(i);
+                thumbs.appendChild(img);
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('lightbox').classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') navLightbox(-1);
+            if (e.key === 'ArrowRight') navLightbox(1);
+        });
+
+        // Close lightbox on backdrop click
+        document.getElementById('lightbox').addEventListener('click', (e) => {
+            if (e.target.id === 'lightbox') closeLightbox();
+        });
+
+        // Wishlist toggle
+        function toggleWishlist(listingId, btn) {
+            fetch(`/api/wishlist/${listingId}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.saved) {
+                        btn.classList.add('saved');
+                        btn.innerHTML = '&#9829; Saved';
+                        btn.title = 'Remove from wishlist';
+                        showToast('Added to wishlist');
+                    } else {
+                        btn.classList.remove('saved');
+                        btn.innerHTML = '&#9825; Save';
+                        btn.title = 'Save to wishlist';
+                        showToast('Removed from wishlist');
+                    }
+                });
+        }
+
+        // Share listing
+        function shareListing(id, title, rent) {
+            const rentStr = rent ? ` - Rs. ${Number(rent).toLocaleString()}/mo` : '';
+            const text = `${title}${rentStr}`;
+            const url = window.location.origin + `/?listing=${id}`;
+
+            if (navigator.share) {
+                navigator.share({ title: 'Flat Listing', text: text, url: url });
+            } else {
+                // Fallback: copy to clipboard
+                const shareText = `${text}\n${url}`;
+                navigator.clipboard.writeText(shareText).then(() => {
+                    showToast('Link copied to clipboard');
+                });
+            }
+        }
+
+        // Toast notification
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.className = 'toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.classList.remove('show');
+            void toast.offsetWidth; // reflow
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+</html>

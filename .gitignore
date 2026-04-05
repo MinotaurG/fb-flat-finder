@@ -2,14 +2,24 @@
 cookies.json
 .env
 
-# python artifacts
- __pycache__/
+# Python artifacts
+__pycache__/
 *.pyc
 
-# Virtual enviornment
+# Virtual environment
 venv/
 
-# Other common ignores
+# IDE files
+*.idea
+.amazonq/
+
+# Other
 *.log
 .DS_Store
 *.swp
+listings_backup.*
+listings.json
+
+# Debug files
+debug_*.py
+debug_*.txt

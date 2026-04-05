@@ -1,0 +1,6 @@
+playwright
+requests
+tenacity
+pyyaml
+flask
+gunicorn
