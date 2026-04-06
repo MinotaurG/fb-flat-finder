@@ -1,89 +1,60 @@
 # finetune.py
-"""Finetune a tiny model for flat listing extraction using Unsloth."""
-from unsloth import FastLanguageModel
-from trl import SFTTrainer
-from transformers import TrainingArguments
-from datasets import load_dataset
+"""Finetune a tiny model for flat listing extraction using MLX on Apple Silicon."""
+import json
+import os
+import subprocess
 
-# Config
-BASE_MODEL = "unsloth/gemma-3-1b-it"
+MODEL = "mlx-community/gemma-3-1b-it-4bit"
 OUTPUT_DIR = "flat-finder-model"
-MAX_SEQ_LENGTH = 1024
-EPOCHS = 3
+TRAIN_FILE = "training_data_chat.jsonl"
+EPOCHS = 6
 BATCH_SIZE = 2
-LEARNING_RATE = 2e-4
+LEARNING_RATE = 1e-5
+LORA_RANK = 8
 
-print("Loading base model...")
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=BASE_MODEL,
-    max_seq_length=MAX_SEQ_LENGTH,
-    load_in_4bit=True,
-)
+# Step 1: Split training data into train/valid
+print("Preparing data...")
+with open(TRAIN_FILE) as f:
+    data = [json.loads(line) for line in f]
 
-print("Adding LoRA adapters...")
-model = FastLanguageModel.get_peft_model(
-    model,
-    r=16,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                     "gate_proj", "up_proj", "down_proj"],
-    lora_alpha=16,
-    lora_dropout=0,
-    bias="none",
-    use_gradient_checkpointing="unsloth",
-)
+split = int(len(data) * 0.9)
+train_data = data[:split]
+valid_data = data[split:]
 
-print("Loading training data...")
-dataset = load_dataset("json", data_files="training_data_chat.jsonl", split="train")
+os.makedirs("data", exist_ok=True)
+with open("data/train.jsonl", "w") as f:
+    for d in train_data:
+        f.write(json.dumps(d, ensure_ascii=False) + "\n")
+with open("data/valid.jsonl", "w") as f:
+    for d in valid_data:
+        f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
-def format_chat(example):
-    """Format chat messages into the model's expected format."""
-    text = tokenizer.apply_chat_template(
-        example["messages"],
-        tokenize=False,
-        add_generation_prompt=False,
-    )
-    return {"text": text}
+print(f"Train: {len(train_data)} | Valid: {len(valid_data)}")
 
-dataset = dataset.map(format_chat)
+# Step 2: Run finetuning via mlx_lm CLI
+print(f"\nFinetuning {MODEL}...")
+cmd = [
+    "python3", "-m", "mlx_lm", "lora",
+    "--model", MODEL,
+    "--data", "data",
+    "--train",
+    "--batch-size", str(BATCH_SIZE),
+    "--num-layers", "8",
+    "--iters", str(len(train_data) // BATCH_SIZE * EPOCHS),
+    "--learning-rate", str(LEARNING_RATE),
+    "--adapter-path", OUTPUT_DIR,
+]
 
-print(f"Training on {len(dataset)} examples...")
-trainer = SFTTrainer(
-    model=model,
-    tokenizer=tokenizer,
-    train_dataset=dataset,
-    args=TrainingArguments(
-        output_dir=OUTPUT_DIR,
-        num_train_epochs=EPOCHS,
-        per_device_train_batch_size=BATCH_SIZE,
-        gradient_accumulation_steps=4,
-        learning_rate=LEARNING_RATE,
-        fp16=False,
-        bf16=True,
-        logging_steps=10,
-        save_strategy="epoch",
-        warmup_steps=5,
-        optim="adamw_8bit",
-        seed=42,
-    ),
-    max_seq_length=MAX_SEQ_LENGTH,
-    dataset_text_field="text",
-)
+print(f"Running: {' '.join(cmd)}\n")
+result = subprocess.run(cmd)
 
-print("Starting training...")
-trainer.train()
-
-print("Saving model...")
-model.save_pretrained(OUTPUT_DIR)
-tokenizer.save_pretrained(OUTPUT_DIR)
-
-# Also save as GGUF for Ollama
-print("Exporting to GGUF for Ollama...")
-model.save_pretrained_gguf(
-    f"{OUTPUT_DIR}-gguf",
-    tokenizer,
-    quantization_method="q4_k_m",
-)
-
-print(f"Done! Model saved to {OUTPUT_DIR} and {OUTPUT_DIR}-gguf")
-print(f"\nTo use with Ollama:")
-print(f"  ollama create flat-finder -f {OUTPUT_DIR}-gguf/Modelfile")
+if result.returncode == 0:
+    print(f"\nFinetuning complete! Adapter saved to {OUTPUT_DIR}/")
+    print(f"\nTo test:")
+    print(f"  python3 -m mlx_lm.generate --model {MODEL} --adapter-path {OUTPUT_DIR} --prompt 'test'")
+    print(f"\nTo fuse into a standalone model:")
+    print(f"  python3 -m mlx_lm.fuse --model {MODEL} --adapter-path {OUTPUT_DIR} --save-path {OUTPUT_DIR}-fused")
+    print(f"\nTo convert to GGUF for Ollama:")
+    print(f"  python3 -m mlx_lm.convert --model {OUTPUT_DIR}-fused --quantize q4_k_m --upload-repo YOUR_HF_REPO")
+else:
+    print(f"\nFinetuning failed with exit code {result.returncode}")
