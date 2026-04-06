@@ -6,8 +6,7 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from playwright.async_api import async_playwright
-from parser import parse_listing
-from enrich import enrich_listing
+from parser_cascade import parse_listing_cascade as parse_listing
 from db import get_conn, insert_listing
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -175,7 +174,6 @@ async def main():
                     parsed["images"] = post["images"]
                     parsed["post_url"] = post["post_url"]
                     parsed["scraped_at"] = scraped_at
-                    parsed = enrich_listing(parsed)
                     all_listings.append(parsed)
                     total_parsed += 1
                     if insert_listing(conn, parsed, group["name"], group["url"]):

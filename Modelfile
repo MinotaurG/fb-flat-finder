@@ -1,0 +1,6 @@
+FROM flat-finder-model-fused
+
+PARAMETER temperature 0.1
+PARAMETER num_ctx 1024
+
+SYSTEM "You extract flat rental info from Facebook posts. Return JSON only."
