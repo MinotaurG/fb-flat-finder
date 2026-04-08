@@ -128,7 +128,7 @@ async def scrape_group(page, group):
         group["name"] = name
 
     posts = await scroll_and_collect(page)
-    log.info(f"  [{group['name']}] {len(posts)} unique posts scraped")
+    log.info(f"  [{group.get('name', 'Unknown')}] {len(posts)} unique posts scraped")
     return posts
 
 
@@ -176,7 +176,7 @@ async def main():
                     parsed["scraped_at"] = scraped_at
                     all_listings.append(parsed)
                     total_parsed += 1
-                    if insert_listing(conn, parsed, group["name"], group["url"]):
+                    if insert_listing(conn, parsed, group.get("name"), group["url"]):
                         total_new += 1
                 else:
                     total_failed += 1

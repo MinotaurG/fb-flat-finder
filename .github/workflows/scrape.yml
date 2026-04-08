@@ -26,7 +26,13 @@ jobs:
           playwright install chromium
 
       - name: Set up cookies
-        run: echo '${{ secrets.FB_COOKIES }}' > cookies.json
+        run: |
+          cat << 'COOKIES_EOF' > cookies.json
+          ${{ secrets.FB_COOKIES }}
+          COOKIES_EOF
+
+      - name: Verify cookies
+        run: python -c "import json; c=json.load(open('cookies.json')); print(f'{len(c)} cookies loaded')"
 
       - name: Run scraper
         env:
