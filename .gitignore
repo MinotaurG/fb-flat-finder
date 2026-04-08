@@ -1,6 +1,8 @@
 # Sensitive Data
 cookies.json
 .env
+listings.db
+listings_backup.*
 
 # Python artifacts
 __pycache__/
