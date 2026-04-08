@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright requests tenacity pyyaml
+          pip install playwright requests tenacity pyyaml psycopg2-binary python-dotenv
           playwright install chromium
 
       - name: Set up cookies
