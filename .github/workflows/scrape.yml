@@ -1,48 +1,12 @@
-name: Scrape Listings
+name: Deploy
 
 on:
-  schedule:
-    - cron: '0 3 * * *'  # 8:30 AM IST (once daily)
-  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [main]
 
 jobs:
-  scrape:
+  notify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          pip install playwright requests tenacity pyyaml psycopg2-binary python-dotenv
-          playwright install chromium
-
-      - name: Set up cookies
-        run: |
-          cat << 'COOKIES_EOF' > cookies.json
-          ${{ secrets.FB_COOKIES }}
-          COOKIES_EOF
-
-      - name: Verify cookies
-        run: python -c "import json; c=json.load(open('cookies.json')); print(f'{len(c)} cookies loaded')"
-
-      - name: Run scraper
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python scraper.py
-
-      - name: Commit updated DB
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add listings.db || true
-          git diff --staged --quiet || git commit -m "Update listings DB [$(date '+%Y-%m-%d %H:%M')]"
-          git push || true
+      - name: Deploy
+        run: echo "Pushed to main. Render auto-deploys."
