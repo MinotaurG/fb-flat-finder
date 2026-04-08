@@ -2,7 +2,7 @@ name: Scrape Listings
 
 on:
   schedule:
-    - cron: '0 3,15 * * *'  # 8:30 AM and 8:30 PM IST
+    - cron: '0 3 * * *'  # 8:30 AM IST (once daily)
   workflow_dispatch:  # Manual trigger
 
 jobs:

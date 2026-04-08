@@ -162,8 +162,13 @@ def search_listings(conn, **filters):
         query += " AND food_preference = ?"
         params.append(filters["food_preference"])
     if filters.get("gender_preference"):
-        query += " AND gender_preference = ?"
-        params.append(filters["gender_preference"])
+        gp = filters["gender_preference"]
+        if gp.startswith("not_"):
+            query += " AND (gender_preference != ? OR gender_preference IS NULL)"
+            params.append(gp.replace("not_", ""))
+        else:
+            query += " AND gender_preference = ?"
+            params.append(gp)
     if filters.get("no_brokerage"):
         query += " AND no_brokerage = 1"
     if filters.get("parking"):
@@ -223,8 +228,13 @@ def count_listings(conn, **filters):
         query += " AND food_preference = ?"
         params.append(filters["food_preference"])
     if filters.get("gender_preference"):
-        query += " AND gender_preference = ?"
-        params.append(filters["gender_preference"])
+        gp = filters["gender_preference"]
+        if gp.startswith("not_"):
+            query += " AND (gender_preference != ? OR gender_preference IS NULL)"
+            params.append(gp.replace("not_", ""))
+        else:
+            query += " AND gender_preference = ?"
+            params.append(gp)
     if filters.get("no_brokerage"):
         query += " AND no_brokerage = 1"
     if filters.get("parking"):

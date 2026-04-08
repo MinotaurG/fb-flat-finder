@@ -110,10 +110,13 @@ def normalize_rent(value) -> int:
 
 
 def normalize_bhk(value) -> str:
-    """Clean BHK to just the number."""
+    """Clean BHK to just the number, or RK."""
     if not value:
         return None
-    match = re.search(r'(\d)', str(value))
+    v = str(value).strip().upper()
+    if v == "RK":
+        return "RK"
+    match = re.search(r'(\d\.?\d?)', v)
     return match.group(1) if match else None
 
 

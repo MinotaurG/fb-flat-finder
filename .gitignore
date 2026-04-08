@@ -23,3 +23,11 @@ listings.json
 # Debug files
 debug_*.py
 debug_*.txt
+
+# Model files (too large for git)
+flat-finder-model/
+flat-finder-model-fused/
+flat-finder-model-clean/
+flat-finder-hf*/
+training_data*.jsonl
+data/

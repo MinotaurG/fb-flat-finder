@@ -59,7 +59,33 @@ def _pick_best(regex_val, model_val):
         return regex_val
     if model_val is not None and model_val != False:
         return model_val
-    return regex_val
+    return None
+
+
+def _validate_amenities(amenities):
+    """Filter out hallucinated amenities."""
+    if not amenities or not isinstance(amenities, list):
+        return None
+    valid = {"lift", "gym", "swimming pool", "security", "power backup", "balcony",
+             "parking", "wifi", "ac", "geyser", "washing machine", "fridge", "ro",
+             "modular kitchen"}
+    filtered = [a for a in amenities if a.lower() in valid]
+    return filtered if filtered else None
+
+
+def _validate_available_from(val):
+    """Filter out hallucinated dates."""
+    if not val or not isinstance(val, str):
+        return None
+    v = val.lower()
+    # Reject if it looks like a full ISO date the model made up
+    if len(v) == 10 and v[4] == '-':
+        return None
+    # Accept only if it contains a month name or 'immediate'
+    months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    if "immedia" in v or any(m in v for m in months):
+        return val
+    return None
 
 
 def parse_listing_cascade(text: str) -> dict:
@@ -83,12 +109,12 @@ def parse_listing_cascade(text: str) -> dict:
         "parking": _pick_best(regex.get("parking"), model.get("parking")),
         "facing": _pick_best(regex.get("facing"), model.get("facing")),
         "lease_duration": _pick_best(regex.get("lease_duration"), model.get("lease_duration")),
-        "amenities": _pick_best(regex.get("amenities"), model.get("amenities")),
-        "available_from": _pick_best(regex.get("available_from"), model.get("available_from")),
+        "amenities": _pick_best(regex.get("amenities"), _validate_amenities(model.get("amenities"))),
+        "available_from": _pick_best(regex.get("available_from"), _validate_available_from(model.get("available_from"))),
 
-        # Model-first fields (model is better at these)
+        # Model-first fields, but regex wins if model says False/None
         "location": _pick_best(model.get("location"), regex.get("location")),
-        "gated_community": model.get("gated_community") if model.get("gated_community") is not None else regex.get("gated_community"),
+        "gated_community": True if (regex.get("gated_community") or model.get("gated_community")) else False,
         "furnished": model.get("furnished") if model.get("furnished") else regex.get("furnished"),
     }
 
