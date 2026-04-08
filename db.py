@@ -77,7 +77,11 @@ SQLITE_WISHLIST = """CREATE TABLE IF NOT EXISTS wishlist (
 
 def get_conn():
     if DB_TYPE == "postgres":
-        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        try:
+            conn = psycopg2.connect(DATABASE_URL, sslmode="require", connect_timeout=10)
+        except psycopg2.OperationalError:
+            # Fallback: try with sslmode=prefer
+            conn = psycopg2.connect(DATABASE_URL, sslmode="prefer", connect_timeout=10)
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute(PG_SCHEMA)
