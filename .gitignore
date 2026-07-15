@@ -33,3 +33,8 @@ flat-finder-model-clean/
 flat-finder-hf*/
 training_data*.jsonl
 data/
+
+# Internal docs
+*.docx
+FB Flat Finder*
+BLOG_POST.md
